@@ -76,8 +76,9 @@
         function createHousePlots() {
             const mapBackground = document.getElementById('mapBackground');
             
-            // Clear existing plots
-            mapBackground.innerHTML = '';
+            // Clear existing house plots only (don't remove flight markers!)
+            const existingPlots = mapBackground.querySelectorAll('.house-plot');
+            existingPlots.forEach(plot => plot.remove());
             
             plotPositions.forEach((position) => {
                 const plot = document.createElement('div');
@@ -208,22 +209,25 @@
   const mapBackground = document.querySelector(mapSelector);
   if (!mapBackground) return;
 
-  // Create a basic class if you haven't already
+  // Create or update styles
   const styleId = 'overlay-icons-style-' + markerClass;
-  if (!document.getElementById(styleId)) {
-    const st = document.createElement('style');
+  let st = document.getElementById(styleId);
+  if (!st) {
+    st = document.createElement('style');
     st.id = styleId;
-    st.textContent = `
-      .${markerClass} {
-        position: absolute;
-        width: ${markerSize}px;
-        height: ${markerSize}px;
-        pointer-events: none;
-        transform: translate(-50%, -100%);
-      }
-    `;
     document.head.appendChild(st);
   }
+  st.textContent = `
+    .${markerClass} {
+      position: absolute;
+      width: ${markerSize}px;
+      height: ${markerSize}px;
+      pointer-events: none;
+      transform: translate(-50%, -100%);
+      z-index: 50;
+      filter: drop-shadow(0 0 3px rgba(0,0,0,0.8));
+    }
+  `;
 
   let positions = [];
   let markers = [];
@@ -243,12 +247,14 @@
     markers = [];
 
     positions.forEach(p => {
-      const img = document.createElement('img');
-      img.src = iconSrc;
-      img.alt = 'marker';
-      img.className = markerClass;
-      mapBackground.appendChild(img);
-      markers.push(img);
+      const div = document.createElement('div');
+      div.className = markerClass;
+      div.style.backgroundImage = `url(${iconSrc})`;
+      div.style.backgroundSize = 'contain';
+      div.style.backgroundRepeat = 'no-repeat';
+      div.style.backgroundPosition = 'center';
+      mapBackground.appendChild(div);
+      markers.push(div);
     });
   }
 
@@ -293,7 +299,7 @@
   jsonUrl: 'flight-positions.json',
   iconSrc: 'icon_taxi_alliance.png',
   markerClass: 'flight-marker-simple',
-  markerSize: 28,
+  markerSize: 32,
   mapSelector: '#mapBackground',
   mapImageSrc: 'map.jpg'
 });
