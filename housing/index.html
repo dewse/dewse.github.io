@@ -187,5 +187,119 @@
         });
     </script>
     <script src="grid-overlay.js"></script>
+
+<script>
+
+/**
+ * Overlay icons on #mapBackground using coordinates from a JSON file.
+ * JSON shape: { positions: [{x, y}, ...] }
+ */
+
+(async function overlayIcons(opts) {
+  const {
+    jsonUrl = 'flight-positions.json',
+    iconSrc = 'icon_taxi_alliance.png',
+    markerClass = 'icon-marker',
+    markerSize = 28,
+    mapSelector = '#mapBackground',
+    mapImageSrc = 'map.jpg'
+  } = opts || {};
+
+  const mapBackground = document.querySelector(mapSelector);
+  if (!mapBackground) return;
+
+  // Create a basic class if you haven't already
+  const styleId = 'overlay-icons-style-' + markerClass;
+  if (!document.getElementById(styleId)) {
+    const st = document.createElement('style');
+    st.id = styleId;
+    st.textContent = `
+      .${markerClass} {
+        position: absolute;
+        width: ${markerSize}px;
+        height: ${markerSize}px;
+        pointer-events: none;
+        transform: translate(-50%, -100%);
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  let positions = [];
+  let markers = [];
+
+  try {
+    const res = await fetch(jsonUrl);
+    const data = await res.json();
+    positions = Array.isArray(data.positions) ? data.positions : [];
+  } catch (e) {
+    console.error('overlayIcons: failed to load', jsonUrl, e);
+    return;
+  }
+
+  function buildMarkers() {
+    // clear
+    markers.forEach(m => m.remove());
+    markers = [];
+
+    positions.forEach(p => {
+      const img = document.createElement('img');
+      img.src = iconSrc;
+      img.alt = 'marker';
+      img.className = markerClass;
+      mapBackground.appendChild(img);
+      markers.push(img);
+    });
+  }
+
+  function reposition() {
+    const mapRect = mapBackground.getBoundingClientRect();
+    const W = mapRect.width, H = mapRect.height;
+
+    const img = new Image();
+    img.onload = () => {
+      const ARimg = img.width / img.height;
+      const ARcnt = W / H;
+
+      let w, h, offX, offY;
+      if (ARimg > ARcnt) {
+        w = W; h = W / ARimg; offX = 0; offY = (H - h) / 2;
+      } else {
+        h = H; w = H * ARimg; offX = (W - w) / 2; offY = 0;
+      }
+
+      const sx = w / img.width;
+      const sy = h / img.height;
+
+      markers.forEach((m, i) => {
+        const p = positions[i];
+        if (!p) return;
+        m.style.left = (offX + p.x * sx) + 'px';
+        m.style.top  = (offY + p.y * sy) + 'px';
+      });
+    };
+    img.src = mapImageSrc;
+  }
+
+  buildMarkers();
+  reposition();
+
+  let t;
+  window.addEventListener('resize', () => {
+    clearTimeout(t);
+    t = setTimeout(reposition, 50);
+  });
+})({
+  jsonUrl: 'flight-positions.json',
+  iconSrc: 'icon_taxi_alliance.png',
+  markerClass: 'flight-marker-simple',
+  markerSize: 28,
+  mapSelector: '#mapBackground',
+  mapImageSrc: 'map.jpg'
+});
+</script>
+
+
+    
 </body>
 </html>
