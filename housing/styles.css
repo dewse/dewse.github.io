@@ -170,3 +170,54 @@ body {
         overflow: auto;
     }
 }
+
+/* pop-over code start */
+
+.plot-popover {
+    display: flex;
+    /* force vertical stacking */
+    flex-direction: column;
+    /* caption above image */
+    align-items: center;
+    /* center everything */
+    justify-content: center;
+    gap: 12px;
+    /* optional aesthetic spacing */
+}
+
+.plot-popover[aria-hidden="false"] {
+    display: flex;
+}
+
+.plot-popover img {
+    max-width: 600px;
+    /* target size */
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+    background: #111;
+}
+
+.plot-popover-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    font-size: 28px;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+}
+
+.plot-popover-caption {
+    font-size: x-large !important;
+    font-weight: 600;
+    color: #adadad;
+    text-align: center;
+    margin: 0;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+/* pop-over code ends */
