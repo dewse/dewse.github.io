@@ -143,6 +143,10 @@ body {
     z-index: 100;
 }
 
+.legend h3 {
+    padding-bottom: 10px;
+}
+
 .legend-item {
     display: flex;
     align-items: center;
