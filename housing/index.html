@@ -1,291 +1,404 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Guild Housing Map</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="grid-overlay.css">
-</head>
-<body>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="grid-overlay.css" />
+    <style>
+      /* Safety styles in case they’re not in your CSS yet */
+      .plot-popover[aria-hidden="true"] {
+        display: none;
+      }
+      .plot-popover {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: 9999;
+        padding: 24px;
+      }
+      .plot-popover img {
+        max-width: 600px;
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+      }
+      .plot-popover-close {
+        position: absolute;
+        top: 12px;
+        right: 16px;
+        font-size: 32px;
+        background: transparent;
+        border: 0;
+        color: #fff;
+        cursor: pointer;
+      }
+      .plot-popover-caption {
+        margin-top: 8px;
+        color: #eee;
+        text-align: center;
+        font-size: 14px;
+      }
+      .house-plot {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
     <div class="map-container">
-        <div class="map-background" id="mapBackground">
-            <!-- House plots will be dynamically positioned here -->
-        </div>
+      <div class="map-background" id="mapBackground">
+        <!-- House plots will be dynamically positioned here -->
+      </div>
     </div>
 
     <div class="legend">
-        <h3>Legend</h3>
-        <div class="legend-item">
-            <div class="legend-color available"></div>
-            <span>Available</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color occupied"></div>
-            <span>Occupied</span>
-        </div>
-        <div style="margin-top: 10px; font-size: 10px; color: #ccc;">
-            Press <strong>G</strong> to toggle grid
-        </div>
+      <h3>Legend</h3>
+      <div class="legend-item">
+        <div class="legend-color available"></div>
+        <span>Available</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color occupied"></div>
+        <span>Occupied</span>
+      </div>
+      <div style="margin-top: 10px; font-size: 10px; color: #ccc">
+        Press <strong>G</strong> to toggle grid
+      </div>
     </div>
 
     <script>
-        // Housing data from CSV
-        const housingData = {
-            4: "Ahmelya",
-        };
+      // Housing data from CSV
+      const housingData = {
+        0: "Neviriah",
+        4: "Ahmelya",
+        6: "Elvor",
+        7: "GasLightatdawn",
+        8: "Koren",
+        12: "Sailer",
+        13: "Sensayy",
+        17: "Baelys",
+        21: "guest",
+        22: "Briar",
+        23: "Lionhart",
+        24: "Halfyy",
+        28: "Aex",
+        29: "Gwen",
+        31: "Diff",
+        32: "Kafka",
+        38: "Nobbel",
+        41: "Phate",
+        43: "Cirillie",
+        46: "Wacsnie",
+        50: "Sungli",
+      };
 
-        // House plot positions loaded from external JSON file
-        let plotPositions = [];
-        let mapImageData = {};
+      // House plot positions loaded from external JSON file
+      let plotPositions = [];
+      let mapImageData = {};
 
-        async function loadPlotPositions() {
-            try {
-                const response = await fetch('plot-positions.json');
-                const data = await response.json();
-                plotPositions = data.plotPositions;
-                mapImageData = data.referenceImage;
-                console.log('Plot positions loaded successfully:', data);
-            } catch (error) {
-                console.error('Error loading plot positions:', error);
-                // Fallback to empty array if JSON fails to load
-                plotPositions = [];
-            }
+      async function loadPlotPositions() {
+        try {
+          const response = await fetch("plot-positions.json", {
+            cache: "no-store",
+          });
+          const data = await response.json();
+          plotPositions = data.plotPositions;
+          mapImageData = data.referenceImage;
+          console.log("Plot positions loaded successfully:", data);
+        } catch (error) {
+          console.error("Error loading plot positions:", error);
+          plotPositions = [];
         }
-
-        function createHousePlots() {
-            const mapBackground = document.getElementById('mapBackground');
-            
-            // Clear existing house plots only (don't remove flight markers!)
-            const existingPlots = mapBackground.querySelectorAll('.house-plot');
-            existingPlots.forEach(plot => plot.remove());
-            
-            plotPositions.forEach((position) => {
-                const plot = document.createElement('div');
-                plot.className = 'house-plot';
-                plot.textContent = position.plotNumber;
-                
-                // Check if plot is occupied
-                if (housingData[position.plotNumber]) {
-                    plot.classList.add('occupied');
-                    
-                    // Add tooltip with buyer name
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'plot-info';
-                    tooltip.textContent = `Plot ${position.plotNumber}: ${housingData[position.plotNumber]}`;
-                    plot.appendChild(tooltip);
-                } else {
-                    // Add tooltip for available plot
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'plot-info';
-                    tooltip.textContent = `Plot ${position.plotNumber}: Available`;
-                    plot.appendChild(tooltip);
-                }
-                
-                // Position the plot
-                plot.style.left = position.x + 'px';
-                plot.style.top = position.y + 'px';
-                
-                mapBackground.appendChild(plot);
-            });
-        }
-
-        function updatePlotPositions() {
-            const mapBackground = document.getElementById('mapBackground');
-            const plots = document.querySelectorAll('.house-plot');
-            
-            if (plots.length === 0) return;
-            
-            // Get the actual map image dimensions and position (same logic as grid)
-            const mapImage = new Image();
-            mapImage.onload = function() {
-                const mapRect = mapBackground.getBoundingClientRect();
-                const containerWidth = mapRect.width;
-                const containerHeight = mapRect.height;
-                
-                // Calculate the actual displayed image dimensions (maintaining aspect ratio)
-                const imageAspectRatio = mapImage.width / mapImage.height;
-                const containerAspectRatio = containerWidth / containerHeight;
-                
-                let imageWidth, imageHeight, offsetX, offsetY;
-                
-                if (imageAspectRatio > containerAspectRatio) {
-                    // Image is wider than container
-                    imageWidth = containerWidth;
-                    imageHeight = containerWidth / imageAspectRatio;
-                    offsetX = 0;
-                    offsetY = (containerHeight - imageHeight) / 2;
-                } else {
-                    // Image is taller than container
-                    imageHeight = containerHeight;
-                    imageWidth = containerHeight * imageAspectRatio;
-                    offsetX = (containerWidth - imageWidth) / 2;
-                    offsetY = 0;
-                }
-                
-                // Calculate scale factor from original image to displayed image
-                const scaleX = imageWidth / mapImage.width;
-                const scaleY = imageHeight / mapImage.height;
-                
-                // Update plot positions using the same logic as grid
-                plots.forEach((plot, index) => {
-                    const originalPos = plotPositions[index];
-                    if (originalPos) {
-                        const scaledX = offsetX + (originalPos.x * scaleX);
-                        const scaledY = offsetY + (originalPos.y * scaleY);
-                        
-                        plot.style.left = scaledX + 'px';
-                        plot.style.top = scaledY + 'px';
-                    }
-                });
-            };
-            
-            mapImage.src = 'map.jpg';
-        }
-
-        // Initialize the map
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Load plot positions from JSON file first
-            await loadPlotPositions();
-            
-            // Create house plots after positions are loaded
-            createHousePlots();
-            
-            // Update positions on window resize
-            let plotResizeTimeout;
-            window.addEventListener('resize', function() {
-                // Clear existing timeout to prevent multiple rapid calls
-                clearTimeout(plotResizeTimeout);
-                // Update immediately for responsiveness
-                updatePlotPositions();
-            });
-            
-            // Initial position update
-            setTimeout(updatePlotPositions, 100);
-            
-            // Create initial grid overlay
-            //setTimeout(createGridOverlay, 500);
-        });
-    </script>
-    <script src="grid-overlay.js"></script>
-
-<script>
-
-/**
- * Overlay icons on #mapBackground using coordinates from a JSON file.
- * JSON shape: { positions: [{x, y}, ...] }
- */
-
-(async function overlayIcons(opts) {
-  const {
-    jsonUrl = 'flight-positions.json',
-    iconSrc = 'icon_taxi_alliance.png',
-    markerClass = 'icon-marker',
-    markerSize = 28,
-    mapSelector = '#mapBackground',
-    mapImageSrc = 'map.jpg'
-  } = opts || {};
-
-  const mapBackground = document.querySelector(mapSelector);
-  if (!mapBackground) return;
-
-  // Create or update styles
-  const styleId = 'overlay-icons-style-' + markerClass;
-  let st = document.getElementById(styleId);
-  if (!st) {
-    st = document.createElement('style');
-    st.id = styleId;
-    document.head.appendChild(st);
-  }
-  st.textContent = `
-    .${markerClass} {
-      position: absolute;
-      width: ${markerSize}px;
-      height: ${markerSize}px;
-      pointer-events: none;
-      transform: translate(-50%, -100%);
-      z-index: 2;
-      filter: drop-shadow(0 0 3px rgba(0,0,0,0.8));
-    }
-  `;
-
-  let positions = [];
-  let markers = [];
-
-  try {
-    const res = await fetch(jsonUrl);
-    const data = await res.json();
-    positions = Array.isArray(data.positions) ? data.positions : [];
-  } catch (e) {
-    console.error('overlayIcons: failed to load', jsonUrl, e);
-    return;
-  }
-
-  function buildMarkers() {
-    // clear
-    markers.forEach(m => m.remove());
-    markers = [];
-
-    positions.forEach(p => {
-      const div = document.createElement('div');
-      div.className = markerClass;
-      div.style.backgroundImage = `url(${iconSrc})`;
-      div.style.backgroundSize = 'contain';
-      div.style.backgroundRepeat = 'no-repeat';
-      div.style.backgroundPosition = 'center';
-      mapBackground.appendChild(div);
-      markers.push(div);
-    });
-  }
-
-  function reposition() {
-    const mapRect = mapBackground.getBoundingClientRect();
-    const W = mapRect.width, H = mapRect.height;
-
-    const img = new Image();
-    img.onload = () => {
-      const ARimg = img.width / img.height;
-      const ARcnt = W / H;
-
-      let w, h, offX, offY;
-      if (ARimg > ARcnt) {
-        w = W; h = W / ARimg; offX = 0; offY = (H - h) / 2;
-      } else {
-        h = H; w = H * ARimg; offX = (W - w) / 2; offY = 0;
       }
 
-      const sx = w / img.width;
-      const sy = h / img.height;
+      function createHousePlots() {
+        const mapBackground = document.getElementById("mapBackground");
+        // Clear existing house plots only (don't remove flight markers!)
+        const existingPlots = mapBackground.querySelectorAll(".house-plot");
+        existingPlots.forEach((plot) => plot.remove());
 
-      markers.forEach((m, i) => {
-        const p = positions[i];
-        if (!p) return;
-        m.style.left = (offX + p.x * sx) + 'px';
-        m.style.top  = (offY + p.y * sy) + 'px';
+        plotPositions.forEach((position) => {
+          const plot = document.createElement("div");
+          plot.className = "house-plot";
+          plot.textContent = position.plotNumber;
+
+          // unique image per plot; tries jpg → jpeg → png
+          const base = `/plot_examples/plot_${position.plotNumber}`;
+          plot.dataset.imgBase = base;
+
+          const label = housingData[position.plotNumber]
+            ? `Plot ${position.plotNumber}: ${housingData[position.plotNumber]}`
+            : `Plot ${position.plotNumber}: Available`;
+          plot.dataset.caption = label;
+
+          // tooltip (kept as in your original)
+          const tooltip = document.createElement("div");
+          tooltip.className = "plot-info";
+          tooltip.textContent = label;
+          plot.appendChild(tooltip);
+
+          // position
+          plot.style.left = position.x + "px";
+          plot.style.top = position.y + "px";
+
+          if (housingData[position.plotNumber]) {
+            plot.classList.add("occupied");
+          }
+
+          mapBackground.appendChild(plot);
+        });
+      }
+
+      function updatePlotPositions() {
+        const mapBackground = document.getElementById("mapBackground");
+        const plots = document.querySelectorAll(".house-plot");
+        if (plots.length === 0) return;
+
+        const mapImage = new Image();
+        mapImage.onload = function () {
+          const mapRect = mapBackground.getBoundingClientRect();
+          const containerWidth = mapRect.width;
+          const containerHeight = mapRect.height;
+
+          const imageAspectRatio = mapImage.width / mapImage.height;
+          const containerAspectRatio = containerWidth / containerHeight;
+
+          let imageWidth, imageHeight, offsetX, offsetY;
+
+          if (imageAspectRatio > containerAspectRatio) {
+            imageWidth = containerWidth;
+            imageHeight = containerWidth / imageAspectRatio;
+            offsetX = 0;
+            offsetY = (containerHeight - imageHeight) / 2;
+          } else {
+            imageHeight = containerHeight;
+            imageWidth = containerHeight * imageAspectRatio;
+            offsetX = (containerWidth - imageWidth) / 2;
+            offsetY = 0;
+          }
+
+          const scaleX = imageWidth / mapImage.width;
+          const scaleY = imageHeight / mapImage.height;
+
+          plots.forEach((plot, index) => {
+            const originalPos = plotPositions[index];
+            if (originalPos) {
+              const scaledX = offsetX + originalPos.x * scaleX;
+              const scaledY = offsetY + originalPos.y * scaleY;
+              plot.style.left = scaledX + "px";
+              plot.style.top = scaledY + "px";
+            }
+          });
+        };
+        mapImage.src = "map.jpg";
+      }
+
+      // --- Utility to resolve first working image extension ---
+      async function resolveImageSrc(baseNoExt) {
+        const exts = [".jpg", ".jpeg", ".png"];
+        for (const ext of exts) {
+          const url = `${baseNoExt}${ext}`;
+          try {
+            const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+            if (res.ok) return url;
+          } catch (_) {}
+        }
+        return null;
+      }
+
+      // Initialize everything after DOM is fully ready
+      document.addEventListener("DOMContentLoaded", async function () {
+        // Popover elements (moved here so they exist before we bind)
+        const popover = document.getElementById("plotPopover");
+        const popImg = document.getElementById("plotPopoverImg");
+        const popCap = document.getElementById("plotPopoverCaption");
+        const popClose = document.querySelector(".plot-popover-close");
+
+        function closePlotPopover() {
+          popover.setAttribute("aria-hidden", "true");
+          popImg.removeAttribute("src");
+          popImg.removeAttribute("alt");
+        }
+
+        async function openPlotPopover(baseSrc, caption) {
+          popCap.textContent = caption || "";
+          const resolved = await resolveImageSrc(baseSrc);
+          if (!resolved) {
+            popCap.textContent =
+              (caption ? caption + " — " : "") + "(no preview available)";
+            popImg.removeAttribute("src");
+          } else {
+            popImg.src = resolved;
+            popImg.alt = caption || "Plot preview";
+          }
+          popover.setAttribute("aria-hidden", "false");
+        }
+
+        // Load plot positions and create plots
+        await loadPlotPositions();
+        createHousePlots();
+
+        // Bind click handlers now that plots exist
+        document
+          .getElementById("mapBackground")
+          .addEventListener("click", async (e) => {
+            const plot = e.target.closest(".house-plot");
+            if (!plot) return;
+            const base = plot.dataset.imgBase; // e.g., /housing/plot_examples/plot_12
+            const cap = plot.dataset.caption || "";
+            await openPlotPopover(base, cap);
+          });
+
+        // Close handlers
+        popClose?.addEventListener("click", closePlotPopover);
+        popover?.addEventListener("click", (e) => {
+          if (e.target === popover) closePlotPopover();
+        });
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closePlotPopover();
+        });
+
+        // Resize handling
+        let plotResizeTimeout;
+        window.addEventListener("resize", function () {
+          clearTimeout(plotResizeTimeout);
+          updatePlotPositions();
+        });
+
+        // Initial position update
+        setTimeout(updatePlotPositions, 100);
       });
-    };
-    img.src = mapImageSrc;
-  }
+    </script>
 
-  buildMarkers();
-  reposition();
+    <script src="grid-overlay.js"></script>
 
-  let t;
-  window.addEventListener('resize', () => {
-    clearTimeout(t);
-    t = setTimeout(reposition, 50);
-  });
-})({
-  jsonUrl: 'flight-positions.json',
-  iconSrc: 'icon_taxi_alliance.png',
-  markerClass: 'flight-marker-simple',
-  markerSize: 32,
-  mapSelector: '#mapBackground',
-  mapImageSrc: 'map.jpg'
-});
-</script>
+    <script>
+      /**
+       * Overlay icons on #mapBackground using coordinates from a JSON file.
+       * JSON shape: { positions: [{x, y}, ...] }
+       */
+      (async function overlayIcons(opts) {
+        const {
+          jsonUrl = "flight-positions.json",
+          iconSrc = "icon_taxi_alliance.png",
+          markerClass = "icon-marker",
+          markerSize = 28,
+          mapSelector = "#mapBackground",
+          mapImageSrc = "map.jpg",
+        } = opts || {};
 
+        const mapBackground = document.querySelector(mapSelector);
+        if (!mapBackground) return;
 
-    
-</body>
+        const styleId = "overlay-icons-style-" + markerClass;
+        let st = document.getElementById(styleId);
+        if (!st) {
+          st = document.createElement("style");
+          st.id = styleId;
+          document.head.appendChild(st);
+        }
+        st.textContent = `
+          .${markerClass} {
+            position: absolute;
+            width: ${markerSize}px;
+            height: ${markerSize}px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            z-index: 2;
+            filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));
+          }
+        `;
+
+        let positions = [];
+        let markers = [];
+
+        try {
+          const res = await fetch(jsonUrl, { cache: "no-store" });
+          const data = await res.json();
+          positions = Array.isArray(data.positions) ? data.positions : [];
+        } catch (e) {
+          console.error("overlayIcons: failed to load", jsonUrl, e);
+          return;
+        }
+
+        function buildMarkers() {
+          markers.forEach((m) => m.remove());
+          markers = [];
+
+          positions.forEach((p) => {
+            const div = document.createElement("div");
+            div.className = markerClass;
+            div.style.backgroundImage = `url(${iconSrc})`;
+            div.style.backgroundSize = "contain";
+            div.style.backgroundRepeat = "no-repeat";
+            div.style.backgroundPosition = "center";
+            mapBackground.appendChild(div);
+            markers.push(div);
+          });
+        }
+
+        function reposition() {
+          const mapRect = mapBackground.getBoundingClientRect();
+          const W = mapRect.width,
+            H = mapRect.height;
+
+          const img = new Image();
+          img.onload = () => {
+            const ARimg = img.width / img.height;
+            const ARcnt = W / H;
+
+            let w, h, offX, offY;
+            if (ARimg > ARcnt) {
+              w = W;
+              h = W / ARimg;
+              offX = 0;
+              offY = (H - h) / 2;
+            } else {
+              h = H;
+              w = H * ARimg;
+              offX = (W - w) / 2;
+              offY = 0;
+            }
+
+            const sx = w / img.width;
+            const sy = h / img.height;
+
+            markers.forEach((m, i) => {
+              const p = positions[i];
+              if (!p) return;
+              m.style.left = offX + p.x * sx + "px";
+              m.style.top = offY + p.y * sy + "px";
+            });
+          };
+          img.src = mapImageSrc;
+        }
+
+        buildMarkers();
+        reposition();
+
+        let t;
+        window.addEventListener("resize", () => {
+          clearTimeout(t);
+          t = setTimeout(reposition, 50);
+        });
+      })({
+        jsonUrl: "flight-positions.json",
+        iconSrc: "icon_taxi_alliance.png",
+        markerClass: "flight-marker-simple",
+        markerSize: 32,
+        mapSelector: "#mapBackground",
+        mapImageSrc: "map.jpg",
+      });
+    </script>
+
+    <!-- Popover / lightbox (you said this is already in your HTML; leaving it here for completeness) -->
+    <div id="plotPopover" class="plot-popover" aria-hidden="true">
+      <button class="plot-popover-close" aria-label="Close">&times;</button>
+      <img id="plotPopoverImg" alt="Plot preview" />
+      <div class="plot-popover-caption" id="plotPopoverCaption"></div>
+    </div>
+  </body>
 </html>
