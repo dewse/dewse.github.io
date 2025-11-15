@@ -263,6 +263,8 @@ body {
 /* pop-over code start */
 
 .plot-popover {
+    position: fixed;
+    inset: 0;
     display: flex;
     /* force vertical stacking */
     flex-direction: column;
@@ -271,11 +273,19 @@ body {
     /* center everything */
     justify-content: center;
     gap: 12px;
-    /* optional aesthetic spacing */
+    padding: 30px;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 5000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .plot-popover[aria-hidden="false"] {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .plot-popover img {
