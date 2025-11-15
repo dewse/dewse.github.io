@@ -2,3 +2,8 @@
 
 • Added all the flightpaths
 • Each plot can be clicked to show an example image of the plot (as seen on housing.wowdb.com)
+
+2025 - Nov - 15
+
+• Added a plot legend with plot number and occupant's name (or available tag)
+• User can hover entries in plot legend and it will show popover name over the plots on the map
