@@ -299,16 +299,21 @@
       }
 
       // --- Utility to resolve first working image extension ---
-      async function resolveImageSrc(baseNoExt) {
+      function resolveImageSrc(baseNoExt) {
         const exts = [".jpg", ".jpeg", ".png"];
-        for (const ext of exts) {
-          const url = `${baseNoExt}${ext}`;
-          try {
-            const res = await fetch(url, { method: "HEAD", cache: "no-store" });
-            if (res.ok) return url;
-          } catch (_) {}
-        }
-        return null;
+        return new Promise((resolve) => {
+          const tryNext = (index) => {
+            if (index >= exts.length) {
+              resolve(null);
+              return;
+            }
+            const tester = new Image();
+            tester.onload = () => resolve(tester.src);
+            tester.onerror = () => tryNext(index + 1);
+            tester.src = `${baseNoExt}${exts[index]}`;
+          };
+          tryNext(0);
+        });
       }
 
       // Initialize everything after DOM is fully ready
@@ -318,16 +323,25 @@
         const popImg = document.getElementById("plotPopoverImg");
         const popCap = document.getElementById("plotPopoverCaption");
         const popClose = document.querySelector(".plot-popover-close");
+        let popoverRequestId = 0;
 
         function closePlotPopover() {
+          popoverRequestId++;
           popover.setAttribute("aria-hidden", "true");
           popImg.removeAttribute("src");
           popImg.removeAttribute("alt");
         }
 
         async function openPlotPopover(baseSrc, caption) {
+          const requestId = ++popoverRequestId;
           popCap.textContent = caption || "";
+          popImg.removeAttribute("src");
+          popImg.alt = caption || "Plot preview";
+          popover.setAttribute("aria-hidden", "false");
           const resolved = await resolveImageSrc(baseSrc);
+          if (requestId !== popoverRequestId) {
+            return;
+          }
           if (!resolved) {
             popCap.textContent =
               (caption ? caption + " — " : "") + "(no preview available)";
@@ -336,7 +350,6 @@
             popImg.src = resolved;
             popImg.alt = caption || "Plot preview";
           }
-          popover.setAttribute("aria-hidden", "false");
         }
 
         // Load plot positions and create plots
