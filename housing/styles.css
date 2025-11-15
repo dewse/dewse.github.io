@@ -102,8 +102,16 @@ body {
     z-index: 20;
 }
 
-.house-plot.occupied:hover {
+.house-plot.occupied {
+    background-color: rgba(76, 175, 80, 0.8);
+    color: #fff;
+}
+
+.house-plot.occupied:hover,
+.house-plot.occupied.is-highlighted,
+.house-plot.occupied.is-legend-hover {
     background-color: rgba(76, 175, 80, 1);
+    color: #fff;
 }
 
 .plot-info {
