@@ -6,46 +6,6 @@
     <title>Guild Housing Map</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="grid-overlay.css" />
-    <style>
-      /* Safety styles in case they’re not in your CSS yet */
-      .plot-popover[aria-hidden="true"] {
-        display: none;
-      }
-      .plot-popover {
-        position: fixed;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        background: rgba(0, 0, 0, 0.65);
-        z-index: 9999;
-        padding: 24px;
-      }
-      .plot-popover img {
-        max-width: 800px;
-        width: 100%;
-        height: auto;
-        border-radius: 8px;
-      }
-      .plot-popover-close {
-        position: absolute;
-        top: 12px;
-        right: 16px;
-        font-size: 32px;
-        background: transparent;
-        border: 0;
-        color: #fff;
-        cursor: pointer;
-      }
-      .plot-popover-caption {
-        margin-top: 8px;
-        color: #eee;
-        text-align: center;
-        font-size: 14px;
-      }
-      .house-plot {
-        cursor: pointer;
-      }
-    </style>
   </head>
   <body>
     <div class="map-container">
@@ -54,26 +14,82 @@
       </div>
     </div>
 
-    <div class="legend">
-      <h3>Legend</h3>
-      <div class="legend-item">
-        <div class="legend-color available"></div>
-        <span>Available</span>
+    <div class="legend-wrapper">
+      <div class="legend-panel legend">
+        <h3>Legend</h3>
+        <div class="legend-item">
+          <div class="legend-color available"></div>
+          <span>Available</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color occupied"></div>
+          <span>Occupied</span>
+        </div>
+        <div class="legend-shortcut">
+          Press <strong>G</strong> to toggle grid
+        </div>
       </div>
-      <div class="legend-item">
-        <div class="legend-color occupied"></div>
-        <span>Occupied</span>
-      </div>
-      <div style="margin-top: 10px; font-size: 10px; color: #ccc">
-        Press <strong>G</strong> to toggle grid
+
+      <div class="legend-panel legend-roster" aria-live="polite">
+        <h3>Plot Roster</h3>
+        <div class="legend-roster-columns">
+          <div
+            class="legend-roster-column"
+            id="legendRosterCol0"
+            aria-label="Plots 0 through 19"
+          ></div>
+          <div
+            class="legend-roster-column"
+            id="legendRosterCol1"
+            aria-label="Plots 20 through 39"
+          ></div>
+          <div
+            class="legend-roster-column"
+            id="legendRosterCol2"
+            aria-label="Plots 40 through 55"
+          ></div>
+        </div>
       </div>
     </div>
 
     <script>
       // Housing data from CSV
       const housingData = {
-        0: "Acktbar",
+        0: "Myetric",
+        2: "Seyedo",
         4: "Ahmelya",
+        6: "Zuk Gab",
+        7: "Eeko",
+        8: "Tham",
+        9: "Stryfus",
+        10: "Ceepo",
+        11: "Suggma",
+        12: "Acktbar",
+        15: "Ramzi",
+        17: "Black",
+        18: "Tuber",
+        20: "Leonna",
+        21: "Sanman",
+        22: "Pheonix",
+        23: "Celthinor",
+        24: "Zolbi",
+        25: "TJ",
+        27: "Xertas",
+        28: "Haaruuk",
+        31: "Sajak",
+        32: "Seabohr",
+        33: "Jacob",
+        36: "Sabriya",
+        38: "Zach",
+        39: "Jarridan",
+        40: "Handjabber",
+        41: "Dari",
+        42: "Naberus",
+        44: "Honly",
+        46: "Vorall",
+        47: "Makima",
+        48: "Azzurro",
+        51: "Dolrok",
       };
 
       // House plot positions loaded from external JSON file
@@ -105,6 +121,7 @@
           const plot = document.createElement("div");
           plot.className = "house-plot";
           plot.textContent = position.plotNumber;
+          plot.dataset.plotNumber = position.plotNumber;
 
           // unique image per plot; tries jpg → jpeg → png
           const base = `/housing/plot_examples/plot_${position.plotNumber}`;
@@ -131,6 +148,110 @@
 
           mapBackground.appendChild(plot);
         });
+      }
+
+      function buildLegendRoster() {
+        const columnConfigs = [
+          {
+            element: document.getElementById("legendRosterCol0"),
+            min: 0,
+            max: 19,
+          },
+          {
+            element: document.getElementById("legendRosterCol1"),
+            min: 20,
+            max: 39,
+          },
+          {
+            element: document.getElementById("legendRosterCol2"),
+            min: 40,
+            max: 55,
+          },
+        ];
+
+        if (columnConfigs.some((config) => !config.element)) {
+          return;
+        }
+
+        columnConfigs.forEach((config) => {
+          config.element.innerHTML = "";
+        });
+
+        const roster = plotPositions
+          .slice()
+          .sort((a, b) => a.plotNumber - b.plotNumber)
+          .map((pos) => ({
+            plotNumber: pos.plotNumber,
+            occupant: housingData[pos.plotNumber] || "Available",
+            status: housingData[pos.plotNumber] ? "occupied" : "available",
+          }));
+
+        if (!roster.length) {
+          const empty = document.createElement("p");
+          empty.textContent = "No plots loaded.";
+          columnConfigs[0].element.appendChild(empty);
+          return;
+        }
+
+        roster.forEach((entry) => {
+          const targetConfig =
+            columnConfigs.find(
+              (config) =>
+                entry.plotNumber >= config.min &&
+                entry.plotNumber <= config.max,
+            ) || columnConfigs[columnConfigs.length - 1];
+          const targetColumn = targetConfig.element;
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = `legend-roster-item ${entry.status}`;
+          item.dataset.plotNumber = entry.plotNumber;
+
+          const label = document.createElement("span");
+          label.className = "legend-roster-label";
+          label.textContent = `${entry.plotNumber} – ${entry.occupant}`;
+          item.appendChild(label);
+
+          item.addEventListener("mouseenter", () =>
+            highlightPlot(entry.plotNumber),
+          );
+          item.addEventListener("mouseleave", clearPlotHighlight);
+          item.addEventListener("focus", () => highlightPlot(entry.plotNumber));
+          item.addEventListener("blur", clearPlotHighlight);
+
+          targetColumn.appendChild(item);
+        });
+
+        requestAnimationFrame(updateLegendRosterLabelFades);
+      }
+
+      function updateLegendRosterLabelFades() {
+        const labels = document.querySelectorAll(".legend-roster-label");
+        labels.forEach((label) => {
+          label.classList.remove("legend-roster-label--fade");
+          if (label.scrollWidth > label.clientWidth) {
+            label.classList.add("legend-roster-label--fade");
+          }
+        });
+      }
+
+      function highlightPlot(plotNumber) {
+        clearPlotHighlight();
+        const plot = document.querySelector(
+          `.house-plot[data-plot-number="${plotNumber}"]`,
+        );
+        if (plot) {
+          plot.classList.add("is-highlighted", "is-legend-hover");
+        }
+      }
+
+      function clearPlotHighlight() {
+        document
+          .querySelectorAll(
+            ".house-plot.is-highlighted, .house-plot.is-legend-hover",
+          )
+          .forEach((plot) =>
+            plot.classList.remove("is-highlighted", "is-legend-hover"),
+          );
       }
 
       function updatePlotPositions() {
@@ -221,6 +342,7 @@
         // Load plot positions and create plots
         await loadPlotPositions();
         createHousePlots();
+        buildLegendRoster();
 
         // Bind click handlers now that plots exist
         document
@@ -246,7 +368,10 @@
         let plotResizeTimeout;
         window.addEventListener("resize", function () {
           clearTimeout(plotResizeTimeout);
-          updatePlotPositions();
+          plotResizeTimeout = setTimeout(() => {
+            updatePlotPositions();
+            requestAnimationFrame(updateLegendRosterLabelFades);
+          }, 75);
         });
 
         // Initial position update
